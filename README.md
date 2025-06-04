@@ -5,4 +5,4 @@ This project using Machine Learning and Natural Language Processing to detect wh
 
 
 ## Results of Training
-![img.png](img.png)
+![results.png](results.png)
