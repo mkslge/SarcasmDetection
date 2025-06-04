@@ -5,9 +5,16 @@ import tensorflow as tf
 from tensorflow import keras
 from tensorflow.keras.preprocessing.text import Tokenizer
 from tensorflow.keras.preprocessing.sequence import pad_sequences
+import numpy as np
 
 
-TESTING_SIZE =  28619 / 2
+vocab_size = 10000
+embedding_dimension = 16
+max_length = 100
+trunc_type = 'post'
+padding_type = 'post'
+
+TESTING_SIZE =  28619 // 2
 
 
 sentences = []
@@ -18,6 +25,7 @@ urls = []
 num_lines = 0
 
 with open("Sarcasm.json", 'r') as file:
+
     for line in file:
         if num_lines >= TESTING_SIZE:
             break
@@ -32,31 +40,55 @@ with open("Sarcasm.json", 'r') as file:
 
 
 
+#the first half of the array should be training data
+training_sentences = sentences[:TESTING_SIZE]
+training_labels = labels[:TESTING_SIZE]
 
-#for item in datastore:
-    #sentences.append(item['headline'])
-    #labels.append(item['is_sarcastic'])
-    #urls.append(item['article_link'])
 
-tokenizer = Tokenizer(num_words = 50, oov_token = '<OOOv>')
-tokenizer.fit_on_texts(sentences)
+#the second half of the array should be testing on the trained data
+testing_sentences = sentences[TESTING_SIZE:]
+testing_labels = labels[TESTING_SIZE:]
+
+
+
+
+
+
+tokenizer = Tokenizer(num_words = vocab_size, oov_token = '<OOOv>')
+tokenizer.fit_on_texts(training_sentences)
 word_index = tokenizer.word_index
 
 
-sequences = tokenizer.texts_to_sequences(sentences)
+training_sequences = tokenizer.texts_to_sequences(training_sentences)
+training_padded = pad_sequences(training_sequences, maxlen=max_length)
+
+testing_sequences = tokenizer.texts_to_sequences(testing_sentences)
+testing_padded = pad_sequences(testing_sequences, maxlen=max_length, padding=padding_type, truncating=trunc_type)
 
 
 
-padded_sequences = pad_sequences(sequences, padding='post')
-print(padded_sequences[0])
-print(padded_sequences.shape)
+import numpy as np
+training_padded = np.array(training_padded)
+training_labels = np.array(training_labels)
+testing_padded = np.array(testing_padded)
+testing_labels = np.array(testing_labels)
 
-training_size = 28619 / 2
 
 
-training_sentences = sentences[training_size:]
-training_labels = labels[training_size:]
 
-testing_sentences = sentences[:training_size]
-testing_labels = labels[:training_size]
+model = tf.keras.Sequential([
+    tf.keras.layers.Embedding(vocab_size, embedding_dimension),
+    tf.keras.layers.GlobalAveragePooling1D(),
+    tf.keras.layers.Dense(24, activation='relu'),
+    tf.keras.layers.Dense(1, activation='sigmoid'),
+])
+model.compile(loss='binary_crossentropy', optimizer='adam', metrics=['accuracy'])
 
+
+model.summary()
+
+
+num_epochs = 30
+history = model.fit(
+    training_padded,
+    training_labels,epochs=num_epochs, validation_data=(testing_padded, testing_labels), verbose=2 )
